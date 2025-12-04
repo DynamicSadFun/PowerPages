@@ -21,7 +21,7 @@ $(document).ready(function() {
        LOOKUP_SELECTOR – matches "classic" Power Pages lookup (Bootstrap version).
     ========================================================================= */
     const REQUIRED_SELECTOR =
-        "input[aria-required='true'], input[required], textarea[aria-required='true'], textarea[required], select[required], select[aria-required='true']";
+		"input[aria-required='true'], input[required], textarea[aria-required='true'], textarea[required], select[required], select[aria-required='true'], input[name*='captcha']";
     const LOOKUP_SELECTOR = "input.lookup"; // Example: transactioncurrencyid_name
 
     /* =========================================================================
@@ -53,26 +53,33 @@ $(document).ready(function() {
        Applies consistent UI error styling + inline helper message.
        Ensures message is only appended once per field.
     ========================================================================= */
-    function applyError($field) {
-        $field.css({
-            border: `${CONFIG.ERROR_BORDER_WIDTH} solid ${CONFIG.ERROR_BORDER_COLOR}`,
-            "background-color": CONFIG.ERROR_BACKGROUND_COLOR
-        });
+	function applyError($field) {
+		$field[0].style.setProperty(
+			"border",
+			`${CONFIG.ERROR_BORDER_WIDTH} solid ${CONFIG.ERROR_BORDER_COLOR}`,
+			"important"
+		);
 
-        const $control = $field.closest(".control");
+		$field[0].style.setProperty(
+			"background-color",
+			CONFIG.ERROR_BACKGROUND_COLOR,
+			"important"
+		);
+
+		const $control = $field.closest(".control");
 
         // Prevent duplicate error labels under same field
-        if (!$control.find(".inline-error").length) {
-            $control.append(
-                `<div class="inline-error"
-                      style="color:${CONFIG.ERROR_BORDER_COLOR};
-                             font-size:${CONFIG.ERROR_FONT_SIZE};
-                             margin-top:${CONFIG.ERROR_MARGIN_TOP};">
-                    ${CONFIG.REQUIRED_MESSAGE}
-                 </div>`
-            );
-        }
-    }
+		if (!$control.find(".inline-error").length) {
+			$control.append(
+				`<div class="inline-error"
+					  style="color:${CONFIG.ERROR_BORDER_COLOR};
+							 font-size:${CONFIG.ERROR_FONT_SIZE};
+							 margin-top:${CONFIG.ERROR_MARGIN_TOP};">
+					${CONFIG.REQUIRED_MESSAGE}
+				 </div>`
+			);
+		}
+	}
 
     /* =========================================================================
        VALIDATION ENGINE (Main)
