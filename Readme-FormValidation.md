@@ -76,14 +76,10 @@ The first invalid field is auto-focused to help users fix issues quickly.
 
 ## 🧠 How to Use
 
-You can attach validation to the form’s submit button like this:
+Deploy this script as a global web file for your portal. Then you can attach validation to the form’s submit button like this:
 
 ```js
-formHandler.setupSubmitButtonClickHandler(
-  FormValidation,
-  [".entity-form"],
-  "YOUR_SUBMIT_BUTTON_ID"
-);
+formHandler.setupSubmitButtonClickHandler("YOUR_SUBMIT_BUTTON_ID");
 ```
 
 The handler intercepts the click, runs validation, and only allows submission if all checks pass.
