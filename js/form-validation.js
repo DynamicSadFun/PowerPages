@@ -232,17 +232,19 @@ function FormValidation() {
 }
 
 // in your form, use it as:
-// formHandler.setupSubmitButtonClickHandler(FormValidation, [".entity-form"], YOUR_SUBMIT_BUTTONID);
+// formHandler.setupSubmitButtonClickHandler("YOUR_SUBMIT_BUTTON_ID");
 const formHandler = {
-    setupSubmitButtonClickHandler: function(validationFunction, validationArgs, buttonId) {
+    setupSubmitButtonClickHandler: function (buttonId) {
         const submitButton = document.getElementById(buttonId);
+
         if (!submitButton) {
             console.warn(`Submit button with id '${buttonId}' not found.`);
             return;
         }
 
         const originalOnClick = submitButton.onclick;
-        $(validationArgs[0]).on("input change", "input, select, textarea", function () {
+
+        $(".entity-form").on("input change", "input, select, textarea", function () {
             const field = $(this);
             if (
                 (field.attr("type") === "checkbox" && field.is(":checked")) ||
@@ -254,7 +256,7 @@ const formHandler = {
 
         submitButton.onclick = function (event) {
             event.preventDefault();
-            const isValid = validationFunction();
+            const isValid = FormValidation();
             if (isValid) {
                 if (originalOnClick) {
                     originalOnClick.apply(submitButton, [event]);
