@@ -107,7 +107,9 @@ The handler intercepts the click, runs validation, and only allows submission if
 This script improves out-of-the-box form behavior in Power Pages by providing:
 
 ✔ Client-side validation for many common scenarios
+
 ✔ Consistent UI feedback for users
+
 ✔ A reusable pattern for any Power Pages form
 
 It significantly enhances basic portal forms with modern UX validation without relying on server calls.
