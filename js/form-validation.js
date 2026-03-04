@@ -1,237 +1,268 @@
-$(document).ready(function() {
-    /* =========================================================================
-       CONFIG (Single Centralized Object)
-       -------------------------------------------------------------------------
-       Contains all numbers + strings used in UI feedback.
-       Eliminates "magic constants" and makes future changes easier and safer.
-    ========================================================================= */
-    const CONFIG = {
-        ERROR_BORDER_WIDTH: "2px",
-        ERROR_BORDER_COLOR: "rgb(217,48,37)",
-        ERROR_BACKGROUND_COLOR: "rgb(255,236,236)",
-        ERROR_FONT_SIZE: "12px",
-        ERROR_MARGIN_TOP: "3px",
-        REQUIRED_MESSAGE: "This field is required."
-    };
+const CAPTCHA_INPUT = $(".RadCaptcha").find("input[type='text'][maxlength='7']");
+const CAPTCHA_INPUT_ID = CAPTCHA_INPUT.length > 0 ? "#" + CAPTCHA_INPUT.attr("id") : null;
 
-    /* =========================================================================
-       SELECTORS
-       -------------------------------------------------------------------------
-       REQUIRED_SELECTOR – applies to any PP field marked required or aria-required.
-       LOOKUP_SELECTOR – matches "classic" Power Pages lookup (Bootstrap version).
-    ========================================================================= */
-    const REQUIRED_SELECTOR =
-		"input[aria-required='true'], input[required], textarea[aria-required='true'], textarea[required], select[required], select[aria-required='true'], input[name*='captcha']";
-    const LOOKUP_SELECTOR = "input.lookup"; // Example: transactioncurrencyid_name
+const NUMBERS = {
+    directExportMin: 0,
+    directExportMax: 100,
+    integerMinDefault: 0,
+    integerMaxDefault: 2147483647,
+    moneyMinDefault: -922337203685477,
+    moneyMaxDefault: 922337203685477,
+    captchaMaxLength: 7
+};
 
-    /* =========================================================================
-       SUPPRESS DEFAULT POWER PAGES VALIDATION SUMMARY
-       -------------------------------------------------------------------------
-       PP auto-generates a large validation block on failed submit.
-       We hide it because we use lightweight inline validation instead.
-    ========================================================================= */
-    $("#ValidationSummaryEntityFormView").hide();
+const VALIDATION_MESSAGES = {
+  required: "This field is required.",
+  captchaRequired: "Please enter the CAPTCHA code.",
+  emailInvalid: "Please enter a valid email address.",
+  integerInvalid: "Must be a valid integer.",
+  numberInvalid: "Must be a valid number.",
+  directExportRange: "Value must be between 0 and 100.",
+  captchaTooLong: "CAPTCHA code is too long."
+};
 
-    /* =========================================================================
-       HELPER: REMOVE ERROR STATE FROM FIELD
-       -------------------------------------------------------------------------
-       - Clears border and background styling
-       - Removes associated inline message
-       - Ensures field returns to clean UI when user corrects input
-    ========================================================================= */
-    function removeError($field) {
-        $field.css({
-            border: "",
-            "background-color": ""
-        });
-        $field.closest(".control").find(".inline-error").remove();
+const REQUIRED_SELECTOR =
+    "input[aria-required='true']:not([type='hidden']),"
+    + "input[required]:not([type='hidden']),"
+    + "textarea[aria-required='true'], textarea[required],"
+    + "select[required], select[aria-required='true'],"
+    + CAPTCHA_INPUT_ID;
+
+const LOOKUP_SELECTOR = "input.lookup";
+const VALIDATION_SUMMARY_SELECTOR = "#ValidationSummaryEntityFormView";
+const VALIDATION_SUMMARY_SELECTOR_MODAL = "#ValidationSummaryEntityFormControl_EntityFormView";
+
+function removeError(field) {
+    const $field = field instanceof jQuery ? field : $(field);
+
+    const $target = $field.is("input[id$='_PCF']")
+        ? $field.parent()
+        : $field;
+
+    $target[0].style.setProperty("border", "", "important");
+
+    if ($field.is(CAPTCHA_INPUT_ID)) {
+        const container = $field.parent();
+        container.find(".inline-error").remove();
+        return;
     }
 
-    /* =========================================================================
-       HELPER: APPLY ERROR STATE
-       -------------------------------------------------------------------------
-       Applies consistent UI error styling + inline helper message.
-       Ensures message is only appended once per field.
-    ========================================================================= */
-	function applyError($field) {
-		$field[0].style.setProperty(
-			"border",
-			`${CONFIG.ERROR_BORDER_WIDTH} solid ${CONFIG.ERROR_BORDER_COLOR}`,
-			"important"
-		);
+    let control = $field.closest(".control");
+    if (control.length > 0) {
+        control.find(".inline-error").remove();
+        if (control.children().length === 0) {
+            control.remove();
+        }
+    }
+}
 
-		$field[0].style.setProperty(
-			"background-color",
-			CONFIG.ERROR_BACKGROUND_COLOR,
-			"important"
-		);
+function applyError(field, message = VALIDATION_MESSAGES.required) {
+    const $field = field instanceof jQuery ? field : $(field);
 
-		const $control = $field.closest(".control");
+    const $target = $field.is("input[id$='_PCF']")
+        ? $field.parent()
+        : $field;
 
-        // Prevent duplicate error labels under same field
-		if (!$control.find(".inline-error").length) {
-			$control.append(
-				`<div class="inline-error"
-					  style="color:${CONFIG.ERROR_BORDER_COLOR};
-							 font-size:${CONFIG.ERROR_FONT_SIZE};
-							 margin-top:${CONFIG.ERROR_MARGIN_TOP};">
-					${CONFIG.REQUIRED_MESSAGE}
-				 </div>`
-			);
-		}
-	}
+    $target[0].style.setProperty(
+        "border",
+        "2px solid rgb(255,15,0)",
+        "important"
+    );
 
-    /* =========================================================================
-       VALIDATION ENGINE (Main)
-       -------------------------------------------------------------------------
-       Validates:
-         - Inputs (text, number, etc.)
-         - Textareas
-         - Select elements
-         - Checkboxes
-         - Classic Power Pages lookups (input.lookup)
-       
-       Returns:
-         true  = all fields valid
-         false = at least one field invalid
-    ========================================================================= */
-    function validateRequired() {
-        let valid = true;
+    if ($field.is(CAPTCHA_INPUT_ID)) {
+        const container = $field.parent();
+        container.find(".inline-error").remove();
+        container.prepend(
+            `<div class="inline-error" style="color:#d93025;font-size:12px;margin-bottom:3px;">${message}</div>`
+        );
+        return;
+    }
 
-        /* ---------------------------------------------------------------------
-           1) STANDARD REQUIRED FIELDS
-           ---------------------------------------------------------------------
-           All inputs/selects/textareas marked required via standard HTML
-           or Power Pages' aria-required attributes.
-        --------------------------------------------------------------------- */
-        $(REQUIRED_SELECTOR).each(function() {
-            const $field = $(this);
-            const type = $field.attr("type");
+    let control = $field.closest(".control");
+    if (control.length === 0) {
+        control = $("<div class='control'></div>").insertBefore($field);
+    }
+    if (control.find(".inline-error").length === 0) {
+        control.append(
+            `<div class="inline-error" style="color:#d93025;font-size:12px;margin-top:3px;">${message}</div>`
+        );
+    }
+}
 
-            // Checkbox → must be checked
-            if (type === "checkbox") {
-                if (!$field.is(":checked")) {
-                    applyError($field);
-                    valid = false;
+function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function isValidInteger(value) {
+    return /^-?\d+$/.test(value);
+}
+
+function isValidNumber(value) {
+    return value.trim() !== "" && !isNaN(value);
+}
+
+function FormValidation() {
+    let valid = true;
+    let firstErrorField = null;
+
+    $(VALIDATION_SUMMARY_SELECTOR)?.remove();
+    $(VALIDATION_SUMMARY_SELECTOR_MODAL)?.remove();
+
+    $(REQUIRED_SELECTOR).each(function () {
+        let field = $(this);
+
+        if (!field.is(":visible")) return;
+        if (field.attr("type") === "hidden") return;
+
+        const isPCFField = field.attr("id") && field.attr("id").includes("_PCF");
+        const pcfBaseFieldId = isPCFField ? field.attr("id").replace("_PCF", "") : "";
+
+        let value = field.val()?.trim();
+        let name = (field.attr("name") || "").toLowerCase();
+
+        function flagError(message) {
+            applyError(field, message);
+            if (!firstErrorField) firstErrorField = field;
+            valid = false;
+        }
+
+        if (isPCFField) {
+            const hiddenFieldValue = $("#" + pcfBaseFieldId).val()?.trim();
+            
+            if (!hiddenFieldValue || hiddenFieldValue === '""') {
+                flagError(VALIDATION_MESSAGES.required);
+            } else {
+                removeError(field);
+            }
+            return;
+        }
+
+        if (!value) {
+            if (field.is(CAPTCHA_INPUT_ID)) {
+                flagError(VALIDATION_MESSAGES.captchaRequired);
+            } else {
+                flagError(VALIDATION_MESSAGES.required);
+            }
+            return;
+        } else {
+            removeError(field);
+        }
+
+        if (field.attr("type") === "email" && !isValidEmail(value)) {
+            flagError(VALIDATION_MESSAGES.emailInvalid);
+        }
+
+        if (field.hasClass("integer")) {
+            if (!isValidInteger(value)) {
+                flagError(VALIDATION_MESSAGES.integerInvalid);
+            } else {
+                let min = parseInt(field.attr("min"), 10) || NUMBERS.integerMinDefault;
+                let max = parseInt(field.attr("max"), 10) || NUMBERS.integerMaxDefault;
+                let num = parseInt(value, 10);
+                if (num < min || num > max) {
+                    flagError(`Value must be between ${min} and ${max}.`);
                 }
-                return;
             }
+        }
 
-            // All other form fields → require trimmed non-empty value
-            const value = $field.val();
-            if (!value || !value.trim()) {
-                applyError($field);
-                valid = false;
+        if (field.hasClass("money")) {
+            if (!isValidNumber(value)) {
+                flagError(VALIDATION_MESSAGES.numberInvalid);
+            } else {
+                let min = parseFloat(field.attr("min")) || NUMBERS.moneyMinDefault;
+                let max = parseFloat(field.attr("max")) || NUMBERS.moneyMaxDefault;
+                let num = parseFloat(value);
+                if (num < min || num > max) {
+                    flagError(`Value must be between ${min} and ${max}.`);
+                }
             }
-        });
+        }
 
-        /* ---------------------------------------------------------------------
-           2) CLASSIC POWER PAGES LOOKUP VALIDATION
-           ---------------------------------------------------------------------
-           Example lookup structure:
-           - Visible text input:   transactioncurrencyid_name (class="lookup")
-           - Hidden underlying ID: transactioncurrencyid        (GUID)
+        if (field.is(CAPTCHA_INPUT_ID)) {
+            if (value.length > NUMBERS.captchaMaxLength) {
+                flagError(VALIDATION_MESSAGES.captchaTooLong);
+            }
+        }
+    });
 
-           Validation rules:
-           - Visible text box must contain a value
-           - Hidden GUID must be present (ensures real record chosen)
-        --------------------------------------------------------------------- */
-        $(LOOKUP_SELECTOR).each(function() {
+    $("input[type='checkbox'][aria-required='true']").each(function () {
+        let checkbox = $(this);
 
-            const $lookupText = $(this);
+        if (!checkbox.is(":visible")) return;
 
-            // Lookup field is required only if PP marks it required
+        if (!checkbox.is(":checked")) {
+            applyError(checkbox);
+            if (!firstErrorField) firstErrorField = checkbox;
+            valid = false;
+        } else {
+            removeError(checkbox);
+        }
+    });
+
+    $(LOOKUP_SELECTOR).each(function () {
+        const $lookupText = $(this);
+
+        if (!$lookupText.is(":visible")) return;
+        if ($lookupText.is("select")) return;
+
+        if (
+            !$lookupText.attr("required") &&
+            $lookupText.attr("aria-required") !== "true"
+        ) return;
+
+        const textVal = $lookupText.val()?.trim();
+        const baseFieldId = $lookupText.attr("id")?.replace("_name", "");
+        const $hiddenIdField = $("#" + baseFieldId);
+        const hiddenVal = $hiddenIdField.val()?.trim();
+
+        if (!textVal || !hiddenVal) {
+            applyError($lookupText);
+            if (!firstErrorField) firstErrorField = $lookupText;
+            valid = false;
+        } else {
+            removeError($lookupText);
+        }
+    });
+
+    if (!valid && firstErrorField) {
+        setTimeout(() => firstErrorField.focus(), 50);
+    }
+
+    return valid;
+}
+
+// in your form, use it as:
+// formHandler.setupSubmitButtonClickHandler(FormValidation, [".entity-form"], YOUR_SUBMIT_BUTTONID);
+const formHandler = {
+    setupSubmitButtonClickHandler: function(validationFunction, validationArgs, buttonId) {
+        const submitButton = document.getElementById(buttonId);
+        if (!submitButton) {
+            console.warn(`Submit button with id '${buttonId}' not found.`);
+            return;
+        }
+
+        const originalOnClick = submitButton.onclick;
+        $(validationArgs[0]).on("input change", "input, select, textarea", function () {
+            const field = $(this);
             if (
-                !$lookupText.attr("required") &&
-                $lookupText.attr("aria-required") !== "true"
-            ) return;
-
-            const textVal = $lookupText.val()?.trim();
-
-            // Hidden ID input (same ID minus "_name")
-            const baseFieldId = $lookupText.attr("id")?.replace("_name", "");
-            const $hiddenIdField = $("#" + baseFieldId);
-            const hiddenVal = $hiddenIdField.val()?.trim();
-
-            // If visible text or hidden GUID missing → not valid
-            if (!textVal || !hiddenVal) {
-                applyError($lookupText);
-                valid = false;
+                (field.attr("type") === "checkbox" && field.is(":checked")) ||
+                (field.val() && field.val().trim() !== "")
+            ) {
+                removeError(field);
             }
         });
 
-        return valid;
-    }
-
-    /* =========================================================================
-       LIVE ERROR CLEAN-UP (FIXED FOR LOOKUPS)
-       -------------------------------------------------------------------------
-       Classic Power Pages lookups:
-    	 - Visible textbox: fieldname_name (class="lookup")
-    	 - Hidden GUID input: fieldname
-       When user selects a lookup value → hidden field receives GUID
-       → We must remove error when hidden field changes.
-    ======================================================================== */
-    $(document).on("input change", "input, select, textarea", function() {
-        const $field = $(this);
-        const type = $field.attr("type");
-
-        // 1) Checkbox cleanup
-        if (type === "checkbox") {
-            if ($field.is(":checked")) removeError($field);
-            return;
-        }
-
-        // 2) Classic lookup textbox cleanup
-        if ($field.hasClass("lookup")) {
-            // Case 1: user typed something
-            if ($field.val()?.trim()) {
-                removeError($field);
-            }
-
-            // Case 2: hidden GUID updated (lookup value selected)
-            const hiddenId = $field.attr("id")?.replace("_name", "");
-            const $hiddenField = $("#" + hiddenId);
-
-            if ($hiddenField.length > 0) {
-                if ($hiddenField.val()?.trim()) {
-                    removeError($field);
+        submitButton.onclick = function (event) {
+            event.preventDefault();
+            const isValid = validationFunction();
+            if (isValid) {
+                if (originalOnClick) {
+                    originalOnClick.apply(submitButton, [event]);
                 }
+            } else {
+                console.log("Validation failed. Form will not be submitted.");
+                return false;
             }
-            return;
-        }
-
-        // 3) Hidden lookup ID cleanup (record selected)
-        if ($field.attr("type") === "hidden" && $field.attr("id")) {
-            const id = $field.attr("id");
-            const $lookupText = $("#" + id + "_name");
-
-            if ($lookupText.length && $field.val()?.trim()) {
-                removeError($lookupText);
-            }
-            return;
-        }
-
-        // 4) Standard input/select cleanup
-        if ($field.val() && $field.val().trim() !== "") {
-            removeError($field);
-        }
-    });
-
-    /* =========================================================================
-       SUBMIT HANDLER
-       -------------------------------------------------------------------------
-       - Re-hides OOB Power Pages validation block (it may reappear)
-       - Runs the full validation engine
-       - Prevents form submission on validation failure
-    ========================================================================= */
-    $("#NextButton").on("click", function(e) {
-        // PP regenerates this element sometimes → always hide before validation
-        $("#ValidationSummaryEntityFormView").hide();
-
-        if (!validateRequired()) {
-            e.preventDefault();
-            return false;
-        }
-    });
-});
+        };
+    }
+};
