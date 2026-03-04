@@ -1,5 +1,7 @@
 ## 📌 `form-validation.js` — Client-Side Form Validation for Power Pages
 
+<img width="867" height="725" alt="form-required-0" src="https://github.com/user-attachments/assets/16665661-a515-4d80-a6e0-d494e98ea4b6" />
+
 This script provides a robust client-side validation layer for Power Pages basic or multistep forms. It **enhances the default portal form behavior** by checking required fields, numbers, emails, lookups, checkboxes, and CAPTCHA inputs before submit.
 
 > 💡 Power Pages allows adding custom JavaScript to forms, which runs on the client side to improve interactivity and UX.([Microsoft Learn][1])
